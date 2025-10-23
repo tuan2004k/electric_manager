@@ -1,0 +1,112 @@
+// file: prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+  id              Int           @id @default(autoincrement())
+  email           String        @unique
+  passwordHash    String
+  role            String        @default("Owner") // Owner, Admin
+  apartment       Apartment?
+  createdAt       DateTime      @default(now())
+}
+
+model Apartment {
+  id                  Int               @id @default(autoincrement())
+  ownerId             Int               @unique // Liên kết 1-1 với User
+  owner               User              @relation(fields: [ownerId], references: [id])
+  address             String?
+  name                String            @default("Căn hộ của tôi")
+  tariffId            Int
+  tariff              Tariff            @relation(fields: [tariffId], references: [id])
+  devices             Device[]
+  aiRecommendations AIRecommendation[]
+  automationRules   AutomationRule[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+}
+
+// ============== B. Dữ liệu Cấu hình Thiết bị ==============
+
+model Device {
+  id                String            @id // device_id: VD: "ESP8266_SN001"
+  apartmentId       Int
+  apartment         Apartment         @relation(fields: [apartmentId], references: [id])
+  name              String
+  type              String            // 'AC', 'Fan', 'Light', ...
+  isControllable    Boolean           @default(true) // Có rơ-le không?
+  mqttTopicPub      String            @unique
+  mqttTopicSub      String            @unique
+  // Mối quan hệ với dữ liệu đo lường (sẽ được giải thích ở mục 2)
+  deviceStatuses    DeviceStatus[]
+  powerReadings     PowerReading[] // TimescaleDB integration
+}
+
+model DeviceStatus {
+  deviceId          String    @id
+  device            Device    @relation(fields: [deviceId], references: [id])
+  isOn              Boolean   @default(false)
+  lastReadingW      Float     @default(0)
+  lastUpdated       DateTime  @updatedAt
+}
+
+// ============== C. Dữ liệu Phân tích AI & Tự động hóa ==============
+
+model AIRecommendation {
+  id                  Int      @id @default(autoincrement())
+  apartmentId         Int
+  apartment           Apartment @relation(fields: [apartmentId], references: [id])
+  deviceId            String?
+  type                String    // 'Anomaly', 'Saving Tip', 'Schedule'
+  description         String    @db.Text
+  potentialSavingKwh  Float?
+  potentialSavingVnd  Float?
+  isDismissed         Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+}
+
+model AutomationRule {
+  id                Int       @id @default(autoincrement())
+  apartmentId       Int
+  apartment         Apartment @relation(fields: [apartmentId], references: [id])
+  deviceId          String
+  ruleCondition     String    @db.Text // JSON hoặc chuỗi mô tả
+  ruleAction        String    // "Turn OFF", "Set Temp 26C"
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+}
+
+// ============== D. Dữ liệu Quản lý Giá điện ==============
+
+model Tariff {
+  id                  Int         @id @default(autoincrement())
+  description         String      @unique
+  priceTierStartKwh   Int
+  priceTierEndKwh     Int?        // Null nếu là bậc cuối
+  priceVndKwh         Float
+  apartments          Apartment[]
+}
+
+// ============== E. Bảng dữ liệu Chuỗi thời gian (Core Data) ==============
+
+// LƯU Ý: Nếu dùng PostgreSQL thuần, bạn phải thêm Index
+model PowerReading {
+  id                  Int       @id @default(autoincrement())
+  timestamp           DateTime  @default(now()) @db.Timestamptz // Rất quan trọng cho Time-Series
+  deviceId            String
+  device              Device    @relation(fields: [deviceId], references: [id])
+  currentPowerW       Float
+  totalEnergyKwh      Float
+
+  // Tùy chọn: Thêm index để tối ưu truy vấn theo thời gian
+  @@index([timestamp])
+  @@index([deviceId, timestamp])
+}
