@@ -9,104 +9,351 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============== A. ENUMS ĐẦU TIÊN ==============
+enum UserRole {
+  OWNER
+  ADMIN
+  VIEWER
+}
 
+enum DeviceType {
+  AC
+  FAN
+  LIGHT
+  FRIDGE
+  TV
+  WASHING_MACHINE
+  WATER_HEATER
+  OTHER
+}
+
+enum DeviceStatusEnum {
+  ONLINE
+  OFFLINE
+  ERROR
+  MAINTENANCE
+}
+
+enum RecommendationType {
+  ANOMALY
+  SAVING_TIP
+  SCHEDULE
+  MAINTENANCE
+}
+
+enum NotificationType {
+  EMAIL
+  PUSH
+  SMS
+  SYSTEM
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ============== B. MODELS CƠ BẢN (không phụ thuộc) ==============
 model User {
-  id              Int           @id @default(autoincrement())
-  email           String        @unique
+  id              Int               @id @default(autoincrement())
+  email           String            @unique
+  phone           String?           @unique
+  name            String?
+  avatar          String?
+  verifiedEmail   Boolean           @default(false)
+  verifiedPhone   Boolean           @default(false)
   passwordHash    String
-  role            String        @default("Owner") // Owner, Admin
+  role            UserRole          @default(OWNER)
+  language        String            @default("vi")
   apartment       Apartment?
-  createdAt       DateTime      @default(now())
+  eventLogs       EventLog[]
+  notifications   Notification[]
+  supportTickets  SupportTicket[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  lastLoginAt     DateTime?
+
+  @@map("users")
 }
 
+model Tariff {
+  id                  Int           @id @default(autoincrement())
+  name                String
+  description         String        @unique
+  provider            String        @default("EVN")
+  effectiveFrom       DateTime
+  effectiveTo         DateTime?
+  priceTierStartKwh   Int
+  priceTierEndKwh     Int?
+  priceVndKwh         Float
+  currency            String        @default("VND")
+  apartments          Apartment[]
+  isActive            Boolean       @default(true)
+
+  @@map("tariffs")
+}
+
+// ============== C. MODELS PHỤ THUỘC ==============
 model Apartment {
-  id                  Int               @id @default(autoincrement())
-  ownerId             Int               @unique // Liên kết 1-1 với User
-  owner               User              @relation(fields: [ownerId], references: [id])
+  id                  Int                 @id @default(autoincrement())
+  ownerId             Int                 @unique
+  owner               User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   address             String?
-  name                String            @default("Căn hộ của tôi")
+  floorNumber         Int?
+  name                String              @default("Căn hộ của tôi")
+  areaSqm             Float?
+  occupancy           Int?                @default(1)
+  timezone            String              @default("Asia/Ho_Chi_Minh")
   tariffId            Int
-  tariff              Tariff            @relation(fields: [tariffId], references: [id])
+  tariff              Tariff              @relation(fields: [tariffId], references: [id])
   devices             Device[]
-  aiRecommendations AIRecommendation[]
-  automationRules   AutomationRule[]
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-}
+  aiRecommendations   AIRecommendation[]
+  automationRules     AutomationRule[]
+  eventLogs           EventLog[]
+  energyGoals         EnergyGoal[]
+  powerReadings       PowerReading[]
+  energyBills         EnergyBill[]
+  notifications       Notification[]
+  supportTickets      SupportTicket[]
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
 
-// ============== B. Dữ liệu Cấu hình Thiết bị ==============
+  @@map("apartments")
+}
 
 model Device {
-  id                String            @id // device_id: VD: "ESP8266_SN001"
+  id                String              @id
   apartmentId       Int
-  apartment         Apartment         @relation(fields: [apartmentId], references: [id])
+  apartment         Apartment           @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
   name              String
-  type              String            // 'AC', 'Fan', 'Light', ...
-  isControllable    Boolean           @default(true) // Có rơ-le không?
-  mqttTopicPub      String            @unique
-  mqttTopicSub      String            @unique
-  // Mối quan hệ với dữ liệu đo lường (sẽ được giải thích ở mục 2)
+  type              DeviceType
+  brand             String?
+  model             String?
+  location          String?
+  calibrationFactor Float?              @default(1.0)
+  isControllable    Boolean             @default(true)
+  mqttTopicPub      String              @unique
+  mqttTopicSub      String              @unique
+  minPowerW         Float?
+  maxPowerW         Float?
+  installationDate  DateTime?
+  warrantyUntil     DateTime?
   deviceStatuses    DeviceStatus[]
-  powerReadings     PowerReading[] // TimescaleDB integration
+  powerReadings     PowerReading[]
+  eventLogs         EventLog[]
+  maintenanceLogs   MaintenanceLog[]
+  aiRecommendations AIRecommendation[]
+  automationRules   AutomationRule[]
+  notifications     Notification[]
+  supportTickets    SupportTicket[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@map("devices")
 }
 
+// ============== D. MODELS TRẠNG THÁI & DỮ LIỆU ==============
 model DeviceStatus {
-  deviceId          String    @id
-  device            Device    @relation(fields: [deviceId], references: [id])
-  isOn              Boolean   @default(false)
-  lastReadingW      Float     @default(0)
-  lastUpdated       DateTime  @updatedAt
+  id                Int               @id @default(autoincrement())
+  deviceId          String
+  device            Device            @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  status            DeviceStatusEnum  @default(ONLINE)
+  isOn              Boolean           @default(false)
+  lastReadingW      Float             @default(0)
+  temperature       Float?
+  humidity          Float?
+  signalStrength    Int?
+  lastUpdated       DateTime          @default(now())
+
+  @@unique([deviceId])
+  @@map("device_statuses")
 }
 
-// ============== C. Dữ liệu Phân tích AI & Tự động hóa ==============
-
-model AIRecommendation {
-  id                  Int      @id @default(autoincrement())
+model PowerReading {
+  id                  Int       @id @default(autoincrement())
+  timestamp           DateTime  @default(now()) @db.Timestamptz
+  deviceId            String
+  device              Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   apartmentId         Int
   apartment           Apartment @relation(fields: [apartmentId], references: [id])
+  currentPowerW       Float
+  voltageV            Float?
+  currentA            Float?
+  powerFactor         Float?    @default(1.0)
+  totalEnergyKwh      Float
+  energySinceReset    Float?
+  temperature         Float?
+  humidity            Float?
+
+  @@index([timestamp])
+  @@index([deviceId, timestamp])
+  @@index([apartmentId, timestamp])
+  @@index([deviceId, apartmentId, timestamp])
+  @@map("power_readings")
+}
+
+// ============== E. MODELS AI & TỰ ĐỘNG HÓA ==============
+model AIRecommendation {
+  id                  Int                 @id @default(autoincrement())
+  apartmentId         Int
+  apartment           Apartment           @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
   deviceId            String?
-  type                String    // 'Anomaly', 'Saving Tip', 'Schedule'
-  description         String    @db.Text
+  device              Device?             @relation(fields: [deviceId], references: [id])
+  type                RecommendationType
+  title               String
+  description         String              @db.Text
+  confidenceScore     Float?              @default(0.8)
   potentialSavingKwh  Float?
   potentialSavingVnd  Float?
-  isDismissed         Boolean   @default(false)
-  createdAt           DateTime  @default(now())
+  implementationCost  Float?
+  paybackPeriod       Int?
+  isDismissed         Boolean             @default(false)
+  appliedAt           DateTime?
+  estimatedImpact     String?
+  tags                String[]
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@map("ai_recommendations")
 }
 
 model AutomationRule {
+  id                Int               @id @default(autoincrement())
+  apartmentId       Int
+  apartment         Apartment         @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+  deviceId          String
+  device            Device            @relation(fields: [deviceId], references: [id])
+  name              String            @default("Rule mới")
+  description       String?
+  ruleCondition     String            @db.Text
+  ruleAction        String            @db.Text
+  isActive          Boolean           @default(true)
+  isRecurring       Boolean           @default(true)
+  priority          Int               @default(1)
+  lastTriggeredAt   DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@map("automation_rules")
+}
+
+// ============== F. MODELS BÁO CÁO & MỤC TIÊU ==============
+model EnergyGoal {
   id                Int       @id @default(autoincrement())
   apartmentId       Int
-  apartment         Apartment @relation(fields: [apartmentId], references: [id])
-  deviceId          String
-  ruleCondition     String    @db.Text // JSON hoặc chuỗi mô tả
-  ruleAction        String    // "Turn OFF", "Set Temp 26C"
-  isActive          Boolean   @default(true)
+  apartment         Apartment @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+  name              String    @default("Mục tiêu tiết kiệm")
+  targetKwh         Float
+  targetReduction   Float
+  startDate         DateTime
+  endDate           DateTime
+  currentProgress   Float?    @default(0)
+  isAchieved        Boolean   @default(false)
   createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("energy_goals")
 }
 
-// ============== D. Dữ liệu Quản lý Giá điện ==============
+model EnergyBill {
+  id                Int       @id @default(autoincrement())
+  apartmentId       Int
+  apartment         Apartment @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+  billingMonth      DateTime
+  totalKwh          Float
+  totalAmount       Float
+  tariffDetails     String    @db.Text
+  paidAt            DateTime?
+  dueDate           DateTime?
+  pdfUrl            String?
+  createdAt         DateTime  @default(now())
 
-model Tariff {
-  id                  Int         @id @default(autoincrement())
-  description         String      @unique
-  priceTierStartKwh   Int
-  priceTierEndKwh     Int?        // Null nếu là bậc cuối
-  priceVndKwh         Float
-  apartments          Apartment[]
+  @@unique([apartmentId, billingMonth])
+  @@map("energy_bills")
 }
 
-// ============== E. Bảng dữ liệu Chuỗi thời gian (Core Data) ==============
+// ============== G. MODELS AUDIT & THÔNG BÁO ==============
+model EventLog {
+  id          Int       @id @default(autoincrement())
+  userId      Int?
+  user        User?     @relation(fields: [userId], references: [id])
+  apartmentId Int?
+  apartment   Apartment? @relation(fields: [apartmentId], references: [id])
+  deviceId    String?
+  device      Device?   @relation(fields: [deviceId], references: [id])
+  action      String
+  category    String
+  description String?   @db.Text
+  ipAddress   String?
+  userAgent   String?
+  metadata    String?   @db.Text
+  timestamp   DateTime  @default(now()) @db.Timestamptz
 
-// LƯU Ý: Nếu dùng PostgreSQL thuần, bạn phải thêm Index
-model PowerReading {
-  id                  Int       @id @default(autoincrement())
-  timestamp           DateTime  @default(now()) @db.Timestamptz // Rất quan trọng cho Time-Series
-  deviceId            String
-  device              Device    @relation(fields: [deviceId], references: [id])
-  currentPowerW       Float
-  totalEnergyKwh      Float
-
-  // Tùy chọn: Thêm index để tối ưu truy vấn theo thời gian
   @@index([timestamp])
-  @@index([deviceId, timestamp])
+  @@index([category, timestamp])
+  @@index([userId, timestamp])
+  @@map("event_logs")
+}
+
+model Notification {
+  id          Int                   @id @default(autoincrement())
+  userId      Int
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apartmentId Int?
+  apartment   Apartment?            @relation(fields: [apartmentId], references: [id])
+  deviceId    String?
+  device      Device?               @relation(fields: [deviceId], references: [id])
+  title       String
+  message     String                @db.Text
+  type        NotificationType
+  priority    NotificationPriority  @default(MEDIUM)
+  isRead      Boolean               @default(false)
+  actionUrl   String?
+  sentAt      DateTime              @default(now())
+  readAt      DateTime?
+  expiresAt   DateTime?
+
+  @@index([userId, sentAt])
+  @@index([userId, isRead])
+  @@index([apartmentId, sentAt])
+  @@map("notifications")
+}
+
+// ============== H. MODELS BẢO TRÌ & HỖ TRỢ ==============
+model MaintenanceLog {
+  id                Int       @id @default(autoincrement())
+  deviceId          String
+  device            Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  type              String
+  description       String    @db.Text
+  performedAt       DateTime  @default(now())
+  nextMaintenance   DateTime?
+  cost              Float?
+  technician        String?
+  notes             String?   @db.Text
+
+  @@map("maintenance_logs")
+}
+
+model SupportTicket {
+  id                Int         @id @default(autoincrement())
+  userId            Int
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apartmentId       Int?
+  apartment         Apartment?  @relation(fields: [apartmentId], references: [id])
+  deviceId          String?
+  device            Device?     @relation(fields: [deviceId], references: [id])
+  title             String
+  description       String      @db.Text
+  category          String
+  status            String      @default("OPEN")
+  priority          String      @default("MEDIUM")
+  assignedTo        String?
+  resolvedAt        DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@map("support_tickets")
 }
