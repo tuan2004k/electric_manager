@@ -55,7 +55,6 @@ enum NotificationPriority {
   URGENT
 }
 
-// ============== B. MODELS CƠ BẢN (không phụ thuộc) ==============
 model User {
   id              Int               @id @default(autoincrement())
   email           String            @unique
@@ -95,7 +94,6 @@ model Tariff {
   @@map("tariffs")
 }
 
-// ============== C. MODELS PHỤ THUỘC ==============
 model Apartment {
   id                  Int                 @id @default(autoincrement())
   ownerId             Int                 @unique
@@ -154,7 +152,6 @@ model Device {
   @@map("devices")
 }
 
-// ============== D. MODELS TRẠNG THÁI & DỮ LIỆU ==============
 model DeviceStatus {
   id                Int               @id @default(autoincrement())
   deviceId          String
@@ -182,7 +179,7 @@ model PowerReading {
   voltageV            Float?
   currentA            Float?
   powerFactor         Float?    @default(1.0)
-  totalEnergyKwh      Float
+  totalEnergyKwh  Float?   @default(0.0)
   energySinceReset    Float?
   temperature         Float?
   humidity            Float?
@@ -194,7 +191,6 @@ model PowerReading {
   @@map("power_readings")
 }
 
-// ============== E. MODELS AI & TỰ ĐỘNG HÓA ==============
 model AIRecommendation {
   id                  Int                 @id @default(autoincrement())
   apartmentId         Int
@@ -239,7 +235,6 @@ model AutomationRule {
   @@map("automation_rules")
 }
 
-// ============== F. MODELS BÁO CÁO & MỤC TIÊU ==============
 model EnergyGoal {
   id                Int       @id @default(autoincrement())
   apartmentId       Int
@@ -274,7 +269,6 @@ model EnergyBill {
   @@map("energy_bills")
 }
 
-// ============== G. MODELS AUDIT & THÔNG BÁO ==============
 model EventLog {
   id          Int       @id @default(autoincrement())
   userId      Int?
@@ -321,7 +315,6 @@ model Notification {
   @@map("notifications")
 }
 
-// ============== H. MODELS BẢO TRÌ & HỖ TRỢ ==============
 model MaintenanceLog {
   id                Int       @id @default(autoincrement())
   deviceId          String
