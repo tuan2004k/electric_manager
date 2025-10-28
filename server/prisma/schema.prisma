@@ -1,5 +1,3 @@
-// file: prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,344 +7,107 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============== A. ENUMS ĐẦU TIÊN ==============
-enum UserRole {
-  OWNER
-  ADMIN
-  VIEWER
-}
-
-enum DeviceType {
-  AC
-  FAN
-  LIGHT
-  FRIDGE
-  TV
-  WASHING_MACHINE
-  WATER_HEATER
-  OTHER
-}
-
-enum DeviceStatusEnum {
-  ONLINE
-  OFFLINE
-  ERROR
-  MAINTENANCE
-}
-
-enum RecommendationType {
-  ANOMALY
-  SAVING_TIP
-  SCHEDULE
-  MAINTENANCE
-}
-
-enum NotificationType {
-  EMAIL
-  PUSH
-  SMS
-  SYSTEM
-}
-
-enum NotificationPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
 model User {
-  id              Int               @id @default(autoincrement())
-  email           String            @unique
-  phone           String?           @unique
+  id              String           @id @default(cuid())
+  email           String           @unique
   name            String?
-  avatar          String?
-  verifiedEmail   Boolean           @default(false)
-  verifiedPhone   Boolean           @default(false)
-  passwordHash    String
-  role            UserRole          @default(OWNER)
-  language        String            @default("vi")
-  apartment       Apartment?
-  eventLogs       EventLog[]
-  notifications   Notification[]
-  supportTickets  SupportTicket[]
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  lastLoginAt     DateTime?
+  password        String // Hash với bcrypt
+  role            Role             @default(USER)
+  apartments      Apartment[]
+  recommendations Recommendation[] // Thêm opposite field cho Recommendation
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@map("users")
 }
 
-model Tariff {
-  id                  Int           @id @default(autoincrement())
-  name                String
-  description         String        @unique
-  provider            String        @default("EVN")
-  effectiveFrom       DateTime
-  effectiveTo         DateTime?
-  priceTierStartKwh   Int
-  priceTierEndKwh     Int?
-  priceVndKwh         Float
-  currency            String        @default("VND")
-  apartments          Apartment[]
-  isActive            Boolean       @default(true)
-
-  @@map("tariffs")
-}
-
 model Apartment {
-  id                  Int                 @id @default(autoincrement())
-  ownerId             Int                 @unique
-  owner               User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  address             String?
-  floorNumber         Int?
-  name                String              @default("Căn hộ của tôi")
-  areaSqm             Float?
-  occupancy           Int?                @default(1)
-  timezone            String              @default("Asia/Ho_Chi_Minh")
-  tariffId            Int
-  tariff              Tariff              @relation(fields: [tariffId], references: [id])
-  devices             Device[]
-  aiRecommendations   AIRecommendation[]
-  automationRules     AutomationRule[]
-  eventLogs           EventLog[]
-  energyGoals         EnergyGoal[]
-  powerReadings       PowerReading[]
-  energyBills         EnergyBill[]
-  notifications       Notification[]
-  supportTickets      SupportTicket[]
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  devices   Device[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("apartments")
 }
 
 model Device {
-  id                String              @id
-  apartmentId       Int
-  apartment         Apartment           @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
-  name              String
-  type              DeviceType
-  brand             String?
-  model             String?
-  location          String?
-  calibrationFactor Float?              @default(1.0)
-  isControllable    Boolean             @default(true)
-  mqttTopicPub      String              @unique
-  mqttTopicSub      String              @unique
-  minPowerW         Float?
-  maxPowerW         Float?
-  installationDate  DateTime?
-  warrantyUntil     DateTime?
-  deviceStatuses    DeviceStatus[]
-  powerReadings     PowerReading[]
-  eventLogs         EventLog[]
-  maintenanceLogs   MaintenanceLog[]
-  aiRecommendations AIRecommendation[]
-  automationRules   AutomationRule[]
-  notifications     Notification[]
-  supportTickets    SupportTicket[]
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  id                 String              @id @default(cuid())
+  name               String
+  type               DeviceType
+  macAddress         String              @unique
+  apartmentId        String
+  apartment          Apartment           @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+  consumptionRecords ConsumptionRecord[]
+  anomalies          Anomaly[] // Thêm opposite field cho Anomaly
+  status             DeviceStatus        @default(ONLINE)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@map("devices")
 }
 
-model DeviceStatus {
-  id                Int               @id @default(autoincrement())
-  deviceId          String
-  device            Device            @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  status            DeviceStatusEnum  @default(ONLINE)
-  isOn              Boolean           @default(false)
-  lastReadingW      Float             @default(0)
-  temperature       Float?
-  humidity          Float?
-  signalStrength    Int?
-  lastUpdated       DateTime          @default(now())
+model ConsumptionRecord {
+  id        String   @id @default(cuid())
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  timestamp DateTime @default(now())
+  voltage   Float
+  current   Float
+  power     Float
+  energy    Float
 
-  @@unique([deviceId])
-  @@map("device_statuses")
-}
-
-model PowerReading {
-  id                  Int       @id @default(autoincrement())
-  timestamp           DateTime  @default(now()) @db.Timestamptz
-  deviceId            String
-  device              Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  apartmentId         Int
-  apartment           Apartment @relation(fields: [apartmentId], references: [id])
-  currentPowerW       Float
-  voltageV            Float?
-  currentA            Float?
-  powerFactor         Float?    @default(1.0)
-  totalEnergyKwh  Float?   @default(0.0)
-  energySinceReset    Float?
-  temperature         Float?
-  humidity            Float?
-
-  @@index([timestamp])
   @@index([deviceId, timestamp])
-  @@index([apartmentId, timestamp])
-  @@index([deviceId, apartmentId, timestamp])
-  @@map("power_readings")
+  @@map("consumption_records")
 }
 
-model AIRecommendation {
-  id                  Int                 @id @default(autoincrement())
-  apartmentId         Int
-  apartment           Apartment           @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
-  deviceId            String?
-  device              Device?             @relation(fields: [deviceId], references: [id])
-  type                RecommendationType
-  title               String
-  description         String              @db.Text
-  confidenceScore     Float?              @default(0.8)
-  potentialSavingKwh  Float?
-  potentialSavingVnd  Float?
-  implementationCost  Float?
-  paybackPeriod       Int?
-  isDismissed         Boolean             @default(false)
-  appliedAt           DateTime?
-  estimatedImpact     String?
-  tags                String[]
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-
-  @@map("ai_recommendations")
-}
-
-model AutomationRule {
-  id                Int               @id @default(autoincrement())
-  apartmentId       Int
-  apartment         Apartment         @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
-  deviceId          String
-  device            Device            @relation(fields: [deviceId], references: [id])
-  name              String            @default("Rule mới")
-  description       String?
-  ruleCondition     String            @db.Text
-  ruleAction        String            @db.Text
-  isActive          Boolean           @default(true)
-  isRecurring       Boolean           @default(true)
-  priority          Int               @default(1)
-  lastTriggeredAt   DateTime?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-
-  @@map("automation_rules")
-}
-
-model EnergyGoal {
-  id                Int       @id @default(autoincrement())
-  apartmentId       Int
-  apartment         Apartment @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
-  name              String    @default("Mục tiêu tiết kiệm")
-  targetKwh         Float
-  targetReduction   Float
-  startDate         DateTime
-  endDate           DateTime
-  currentProgress   Float?    @default(0)
-  isAchieved        Boolean   @default(false)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  @@map("energy_goals")
-}
-
-model EnergyBill {
-  id                Int       @id @default(autoincrement())
-  apartmentId       Int
-  apartment         Apartment @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
-  billingMonth      DateTime
-  totalKwh          Float
-  totalAmount       Float
-  tariffDetails     String    @db.Text
-  paidAt            DateTime?
-  dueDate           DateTime?
-  pdfUrl            String?
-  createdAt         DateTime  @default(now())
-
-  @@unique([apartmentId, billingMonth])
-  @@map("energy_bills")
-}
-
-model EventLog {
-  id          Int       @id @default(autoincrement())
-  userId      Int?
-  user        User?     @relation(fields: [userId], references: [id])
-  apartmentId Int?
-  apartment   Apartment? @relation(fields: [apartmentId], references: [id])
+model Anomaly {
+  id          String      @id @default(cuid())
   deviceId    String?
-  device      Device?   @relation(fields: [deviceId], references: [id])
-  action      String
-  category    String
-  description String?   @db.Text
-  ipAddress   String?
-  userAgent   String?
-  metadata    String?   @db.Text
-  timestamp   DateTime  @default(now()) @db.Timestamptz
+  device      Device?     @relation(fields: [deviceId], references: [id])
+  type        AnomalyType
+  description String
+  severity    Int
+  timestamp   DateTime    @default(now())
+  resolved    Boolean     @default(false)
 
-  @@index([timestamp])
-  @@index([category, timestamp])
-  @@index([userId, timestamp])
-  @@map("event_logs")
+  @@map("anomalies")
 }
 
-model Notification {
-  id          Int                   @id @default(autoincrement())
-  userId      Int
-  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  apartmentId Int?
-  apartment   Apartment?            @relation(fields: [apartmentId], references: [id])
-  deviceId    String?
-  device      Device?               @relation(fields: [deviceId], references: [id])
-  title       String
-  message     String                @db.Text
-  type        NotificationType
-  priority    NotificationPriority  @default(MEDIUM)
-  isRead      Boolean               @default(false)
-  actionUrl   String?
-  sentAt      DateTime              @default(now())
-  readAt      DateTime?
-  expiresAt   DateTime?
+model Recommendation {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  title            String
+  description      String
+  estimatedSavings Float
+  applied          Boolean  @default(false)
+  timestamp        DateTime @default(now())
 
-  @@index([userId, sentAt])
-  @@index([userId, isRead])
-  @@index([apartmentId, sentAt])
-  @@map("notifications")
+  @@map("recommendations")
 }
 
-model MaintenanceLog {
-  id                Int       @id @default(autoincrement())
-  deviceId          String
-  device            Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  type              String
-  description       String    @db.Text
-  performedAt       DateTime  @default(now())
-  nextMaintenance   DateTime?
-  cost              Float?
-  technician        String?
-  notes             String?   @db.Text
-
-  @@map("maintenance_logs")
+enum Role {
+  USER
+  ADMIN
 }
 
-model SupportTicket {
-  id                Int         @id @default(autoincrement())
-  userId            Int
-  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  apartmentId       Int?
-  apartment         Apartment?  @relation(fields: [apartmentId], references: [id])
-  deviceId          String?
-  device            Device?     @relation(fields: [deviceId], references: [id])
-  title             String
-  description       String      @db.Text
-  category          String
-  status            String      @default("OPEN")
-  priority          String      @default("MEDIUM")
-  assignedTo        String?
-  resolvedAt        DateTime?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+enum DeviceType {
+  ESP8266
+  ZIGBEE
+}
 
-  @@map("support_tickets")
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+  ERROR
+}
+
+enum AnomalyType {
+  SPIKE
+  DROP
+  IRREGULAR
 }
