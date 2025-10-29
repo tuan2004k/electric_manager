@@ -3,14 +3,37 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class UserService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async findAll() {
-    return this.prisma.user.findMany({ include: { apartments: true } });
+    return this.prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
   }
 
   async findOne(id: string) {
-    return this.prisma.user.findUnique({ where: { id }, include: { apartments: true } });
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
   }
- 
+
+  async getMyProfile(userId: string) {
+    // Lấy profile của user hiện tại từ JWT token (userId được truyền từ controller)
+    return this.findOne(userId); // Reuse findOne để lấy dữ liệu profile
+  }
 }
