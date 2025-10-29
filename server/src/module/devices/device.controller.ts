@@ -1,22 +1,24 @@
 import { Controller, Get, Post, Body } from '@nestjs/common';
+import { ApiTags, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { DeviceService } from './device.service';
-import type { DeviceType } from '@prisma/client';
+import { CreateDeviceDto } from './dto/create-device.dto';
 
+
+@ApiTags('Devices')
 @Controller('devices')
 export class DeviceController {
   constructor(private deviceService: DeviceService) {}
 
   @Get()
+  @ApiResponse({ status: 200, description: 'List devices' })
   async findAll() {
     return this.deviceService.findAll();
   }
 
   @Post()
-  async create(@Body() body: { name: string; type: string; macAddress: string; apartmentId: string }) {
-    const data = {
-      ...body,
-      type: body.type as DeviceType,  
-    };
-    return this.deviceService.create(data);
+  @ApiBody({ type: CreateDeviceDto })
+  @ApiResponse({ status: 201, description: 'Device created' })
+  async create(@Body() body: CreateDeviceDto) {
+    return this.deviceService.create(body);
   }
 }

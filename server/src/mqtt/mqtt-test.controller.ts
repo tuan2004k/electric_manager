@@ -9,9 +9,9 @@ export class MqttTestController {
 
   @Get('status')
   getStatus() {
-    this.logger.log('📊 Checking MQTT connection status...');
+    this.logger.log('Checking MQTT connection status...');
     const status = this.mqttGateway.getConnectionStatus();
-    this.logger.log(`📊 MQTT Status: ${status.status}`);
+    this.logger.log(`MQTT Status: ${status.status}`);
     return status;
   }
 
@@ -24,7 +24,6 @@ export class MqttTestController {
     };
   }
 
-  // ✅ GIỮ LẠI method publish-test (sau khi đã thêm testPublish trong gateway)
   @Post('publish-test')
   async publishTestMessage(@Body() body: { topic: string; message: string }) {
     const success = this.mqttGateway.testPublish(body.topic, body.message);

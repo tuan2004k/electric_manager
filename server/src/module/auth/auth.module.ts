@@ -8,6 +8,7 @@ import { PrismaModule } from '../../prisma/prisma.module';
 @Module({
   imports: [
     PrismaModule,
+    AuthModule,
     JwtModule.registerAsync({
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get('JWT_SECRET'),
@@ -18,6 +19,6 @@ import { PrismaModule } from '../../prisma/prisma.module';
   ],
   controllers: [AuthController],
   providers: [AuthService],
-  exports: [AuthService],
+  exports: [AuthService, JwtModule],
 })
-export class AuthModule {}
+export class AuthModule { }

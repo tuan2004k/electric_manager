@@ -12,6 +12,7 @@ import { AiModule } from './module/ai/ai.module';
 import { RecommendationModule } from './module/recommendation/recommendation.module';
 import { MqttTestController } from './mqtt/mqtt-test.controller';
 import { DeviceMqttGateway } from './module/devices/mqtt/device-mqtt.gateway'; 
+import { ApartmentModule } from './module/apartment/apartment.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { DeviceMqttGateway } from './module/devices/mqtt/device-mqtt.gateway';
     AuthModule,
     AiModule,
     RecommendationModule,
+    ApartmentModule,
   ],
   controllers: [AppController, MqttTestController],
   providers: [
