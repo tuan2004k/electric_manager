@@ -15,14 +15,14 @@ export class ApartmentService {
 
     return this.prisma.apartment.create({
       data,
-      include: { user: true },  // Include user để trả về full info
+      include: { user: true }, 
     });
   }
 
   async findAll(userId: string) {
     return this.prisma.apartment.findMany({
       where: { userId },
-      include: { devices: true },  // Include devices liên kết
+      include: { devices: true },
     });
   }
 

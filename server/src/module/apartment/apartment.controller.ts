@@ -2,19 +2,19 @@ import { Controller, Get, Post, Body, Param, Patch, UseGuards } from '@nestjs/co
 import { ApiTags, ApiBody, ApiParam, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ApartmentService } from './apartment.service';
 import { CreateApartmentDto } from '../apartment/dto/create-apartment.dto';
-import { JwtAuthGuard } from '../../common/guards/jwt.guard'; // Đường dẫn giả định dựa trên cấu trúc module
+import { JwtAuthGuard } from '../../common/guards/jwt.guard'; 
 import { RolesGuard } from '../../common/guards/role.guard';
-import { Roles } from '../../common/decorators/roles.decorator'; // Đường dẫn giả định dựa trên ví dụ trước
+import { Roles } from '../../common/decorators/roles.decorator'; 
 
 @ApiTags('Apartments')
-@ApiBearerAuth() // Thêm Bearer Auth cho Swagger docs (vì dùng JWT global)
+@ApiBearerAuth() 
 @Controller('apartments')
-@UseGuards(JwtAuthGuard, RolesGuard) // Áp dụng guards cho toàn bộ controller (nếu không dùng global; bỏ nếu đã global)
+@UseGuards(JwtAuthGuard, RolesGuard) 
 export class ApartmentController {
   constructor(private apartmentService: ApartmentService) {}
 
   @Post()
-  @Roles('USER', 'ADMIN') // Chỉ user hoặc admin mới tạo apartment
+  @Roles('USER', 'ADMIN') 
   @ApiBody({ type: CreateApartmentDto })
   @ApiResponse({ status: 201, description: 'Apartment created' })
   async create(@Body() body: CreateApartmentDto) {
@@ -22,7 +22,7 @@ export class ApartmentController {
   }
 
   @Get('user/:userId')
-  @Roles('USER', 'ADMIN') // Chỉ user đó hoặc admin mới xem apartments của user
+  @Roles('USER', 'ADMIN') 
   @ApiParam({ name: 'userId', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'List apartments for user' })
   async findAllByUser(@Param('userId') userId: string) {
@@ -30,7 +30,7 @@ export class ApartmentController {
   }
 
   @Get(':id')
-  @Roles('USER', 'ADMIN') // Auth required để xem chi tiết apartment
+  @Roles('USER', 'ADMIN') 
   @ApiParam({ name: 'id', description: 'Apartment ID' })
   @ApiResponse({ status: 200, description: 'Apartment details' })
   async findOne(@Param('id') id: string) {

@@ -19,7 +19,7 @@ export class DeviceService {
     return this.prisma.device.findMany({
       where: {
         apartment: {
-          userId,  // Chỉ devices của apartments thuộc user
+          userId,  
         },
       },
       include: { apartment: true },

@@ -33,7 +33,6 @@ export class UserService {
   }
 
   async getMyProfile(userId: string) {
-    // Lấy profile của user hiện tại từ JWT token (userId được truyền từ controller)
-    return this.findOne(userId); // Reuse findOne để lấy dữ liệu profile
+    return this.findOne(userId); 
   }
 }
