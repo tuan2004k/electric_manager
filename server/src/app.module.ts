@@ -14,8 +14,8 @@ import { RecommendationModule } from './module/recommendation/recommendation.mod
 import { ApartmentModule } from './module/apartment/apartment.module';
 import { MqttTestController } from './mqtt/mqtt-test.controller';
 import { DeviceMqttGateway } from './module/devices/mqtt/device-mqtt.gateway';
-import { JwtAuthGuard } from './common/guards/jwt.guard';
-import { RolesGuard } from './common/guards/role.guard';
+import { JwtAuthGuard } from './common/guards/jwt.guard'; // 👈 Đảm bảo đường dẫn đúng
+import { RolesGuard } from './common/guards/role.guard';   // 👈 Đảm bảo đường dẫn đúng
 
 @Module({
   imports: [
@@ -36,9 +36,14 @@ import { RolesGuard } from './common/guards/role.guard';
   providers: [
     AppService,
     DeviceMqttGateway,
+    // 👇 SỬA LẠI: Dùng useClass thay vì useValue, và tách thành 2 provider
     {
       provide: APP_GUARD,
-      useValue: [JwtAuthGuard, RolesGuard], 
+      useClass: JwtAuthGuard, // 👈 Tách riêng
+    },
+    {
+      provide: APP_GUARD, 
+      useClass: RolesGuard,   // 👈 Tách riêng
     },
   ],
 })

@@ -1,4 +1,4 @@
-import { Controller, Get, Logger, Post, Body } from '@nestjs/common';
+import { Controller, Get, Logger } from '@nestjs/common';
 import { DeviceMqttGateway } from '../module/devices/mqtt/device-mqtt.gateway';
 
 @Controller('mqtt-test')
@@ -24,13 +24,14 @@ export class MqttTestController {
     };
   }
 
-  @Post('publish-test')
-  async publishTestMessage(@Body() body: { topic: string; message: string }) {
-    const success = this.mqttGateway.testPublish(body.topic, body.message);
-    return {
-      success: success,
-      message: success ? 'Message published successfully' : 'Failed to publish message',
-      timestamp: new Date().toISOString(),
-    };
-  }
+  // 👇 COMMENT HOẶC XÓA ENDPOINT NÀY
+  // @Post('publish-test')
+  // async publishTestMessage(@Body() body: { topic: string; message: string }) {
+  //   const success = this.mqttGateway.testPublish(body.topic, body.message);
+  //   return {
+  //     success: success,
+  //     message: success ? 'Message published successfully' : 'Failed to publish message',
+  //     timestamp: new Date().toISOString(),
+  //   };
+  // }
 }

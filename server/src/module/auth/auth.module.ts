@@ -4,18 +4,17 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { JwtStrategy } from './strategies/jwt.strategy'; // 👈 Quan trọng
 import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
   imports: [
     PrismaModule,
-    PassportModule, 
+    PassportModule, // 👈 THÊM PassportModule
     JwtModule.registerAsync({
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get('JWT_SECRET'),
-        signOptions: { 
-          expiresIn: configService.get('JWT_EXPIRES_IN') || '1d' 
-        },
+        signOptions: { expiresIn: configService.get('JWT_EXPIRES_IN') || '1d' },
       }),
       inject: [ConfigService],
     }),
@@ -23,7 +22,8 @@ import { PrismaModule } from '../../prisma/prisma.module';
   controllers: [AuthController],
   providers: [
     AuthService,
+    JwtStrategy, // 👈 QUAN TRỌNG: Phải có JwtStrategy
   ],
   exports: [AuthService, JwtModule],
 })
-export class AuthModule { }
+export class AuthModule {}
